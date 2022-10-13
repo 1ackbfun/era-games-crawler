@@ -36,7 +36,7 @@ class Utils:
         return cst_time.int_timestamp
 
     @staticmethod
-    def now(is_timestamp: bool = False) -> str | int:
+    def now(is_timestamp: bool = False) -> tuple[str, int]:
         current = pendulum.now('Asia/Shanghai')
         if is_timestamp:
             return current.int_timestamp
