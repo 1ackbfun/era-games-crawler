@@ -159,7 +159,45 @@ class EraGameSpider:
         return latest_result
 
     @staticmethod
-    def broadcast(news: list) -> None:
+    def send_to_discord(data_list: list, username: str = '', avatar_url: str = '') -> None:
+        data = {'embeds': []}
+        if username != '':
+            data['username'] = username
+        if avatar_url != '':
+            data['avatar_url'] = avatar_url
+        if len(data_list) > 10:
+            print(f'{Utils.now()}  [WARN] 每条消息附带最多10个嵌入式信息(embed)')
+            print(
+                '详见 https://discord.com/developers/docs/resources/webhook#execute-webhook-jsonform-params')
+            print('本来预计不会出现1小时内新增超过10个新资源的情况 懒得做额外容错了')
+            print('理论上说 永远不会运行到这里 就这样吧 直接退出')
+            exit(1)
+        for d in data_list:
+            data['embeds'].append({
+                'title': d['file_name'],
+                'description':
+                    f'[点击下载]({d["url"]})（账号密码均为 `era`）' +
+                    f'\n`{d["file_id"]}` _{d["size"]}_',
+                'footer': {'text': f'更新于 {d["time"]}'},
+                'fields': [{'name': '附带说明', 'value': d['desc']}],
+            })
+        try:
+            resp = requests.post(CFG.discord["webhook"], json=data)
+            if resp.status_code == 204:
+                print(f'{Utils.now()}  [INFO] 已发送到 Discord')
+            else:
+                print(f'{Utils.now()} [ERROR] 发送到 Discord 失败 {resp.text}')
+        except Exception as e:
+            print(f'{Utils.now()} [ERROR] {e}')
+        return
+
+    @staticmethod
+    def send_to_telegram(data_list: list) -> None:
+        print('TODO 发送到 Telegram', CFG.telegram["webhook"])
+        return
+
+    @staticmethod
+    def broadcast(news: list, username: str = '') -> None:
         if len(news) > 0:
             print(f'{Utils.now()}  [INFO] 最近更新({len(news)}作):')
             tab_size = 27
@@ -171,30 +209,31 @@ class EraGameSpider:
                     f'({el["size"]}) 更新于 {el["time"]}',
                 )
                 print(' ' * (tab_size + 4), el['desc'])
-                # if CFG.discord['enable']:
-                #     print('TODO 发送到 Discord', CFG.discord["webhook"])
-                if CFG.telegram['enable']:
-                    print('TODO 发送到 Telegram', CFG.telegram["webhook"])
+            if CFG.discord['enable']:
+                EraGameSpider.send_to_discord(news, username)
+            if CFG.telegram['enable']:
+                EraGameSpider.send_to_telegram(news)
         else:
             print(f'{Utils.now()}  [INFO] 没有更新')
         return
 
-
-def run_task(debug: bool = False) -> None:
-    Utils.init_task()
-    for path in ['up', 'up2']:
-        res = EraGameSpider.check_update(
-            f'http://book-shelf-end.com/{path}', debug)
-        EraGameSpider.broadcast(res)
+    @staticmethod
+    def run(debug: bool = False) -> None:
+        Utils.init_task()
+        username = {'up': '其他era游戏', 'up2': '东方era游戏'}
+        for path in ['up', 'up2']:
+            res = EraGameSpider.check_update(
+                f'http://book-shelf-end.com/{path}', debug)
+            EraGameSpider.broadcast(res, username[path])
 
 
 def test() -> None:
-    run_task(True)
+    EraGameSpider.run(True)
     return
 
 
 def main() -> None:
-    run_task()
+    EraGameSpider.run()
     return
 
 
