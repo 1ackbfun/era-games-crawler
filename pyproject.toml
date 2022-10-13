@@ -7,14 +7,15 @@ readme = "README.md"
 packages = [{include = "crawler"}]
 
 [tool.poetry.scripts]
+test = "crawler.task:test"
 task = "crawler.task:main"
 
 [tool.poetry.dependencies]
 python = "^3.10"
+pendulum = "^2.1.2"
 requests = "^2.28.1"
 lxml = "^4.9.1"
 bs4 = "^0.0.1"
-pendulum = "^2.1.2"
 
 
 [build-system]

@@ -1,14 +1,15 @@
 import os
+import json
+import pendulum
 import requests
 from bs4 import BeautifulSoup
 import lxml
-import pendulum
 
 
 class Utils:
 
     @staticmethod
-    def init() -> None:
+    def init_task() -> None:
         cache_path = r'./cache'
         if not os.path.exists(cache_path):
             os.mkdir(cache_path)
@@ -58,6 +59,47 @@ class Utils:
         return (target_time - last_week).seconds >= 0
 
 
+class Config:
+
+    def _load_config(self) -> bool:
+        config_path = r'./config.json'
+        if os.path.exists(config_path):
+            try:
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    config = json.loads(f.read())
+                print(f'{Utils.now()}  [INFO] 已读取配置文件')
+                if not ('discord' in config and 'telegram' in config):
+                    print(f'{Utils.now()} [ERROR] 配置文件缺失必要的项目')
+                else:
+                    for key in ['discord', 'telegram']:
+                        if 'enable' in config[key] and config[key]['enable']:
+                            if not ('webhook' in config[key]) \
+                                    or config[key]['webhook'] == '':
+                                print(
+                                    f'{Utils.now()} [ERROR] 启用了 {key} 但没有配置 webhook')
+                                return False
+                    self.discord = config['discord']
+                    self.telegram = config['telegram']
+                    return True
+            except Exception as e:
+                print(f'{Utils.now()} [ERROR] {e}')
+                print('可能解析配置文件失败 请检查 JSON 格式是否合法')
+        else:
+            print(f'{Utils.now()} [ERROR] 配置文件缺失')
+            print('运行 cp config.example.json config.json 并修改后重新运行')
+        return False
+
+    def __init__(self) -> None:
+        if not self._load_config():
+            exit(1)
+        if not (self.discord['enable'] or self.telegram['enable']):
+            print(f'{Utils.now()}  [WARN] 没有启用任何播报的频道 直接退出')
+            exit(0)
+
+
+CFG = Config()
+
+
 class EraGameSpider:
 
     @staticmethod
@@ -89,8 +131,8 @@ class EraGameSpider:
         return html_text
 
     @staticmethod
-    def check_update(url: str) -> list:
-        html = EraGameSpider.get_html(f'{url}/index.html', True)
+    def check_update(url: str, debug: bool = False) -> list:
+        html = EraGameSpider.get_html(f'{url}/index.html', debug)
         soup = BeautifulSoup(html, 'lxml')
         page_result = []
         for table_content in soup.select('table#table'):
@@ -107,9 +149,12 @@ class EraGameSpider:
                         'desc': raw_data[2].text,
                     })
         latest_result = []
+        if debug:
+            print(f'{Utils.now()} [DEBUG] 已启用调试模式 返回的结果为最近一周')
         for item in reversed(page_result):
-            if Utils.in_last_hour(item['time']):
-                # if Utils.in_last_week(item['time']):
+            if debug and Utils.in_last_week(item['time']):
+                latest_result.append(item)
+            elif Utils.in_last_hour(item['time']):
                 latest_result.append(item)
         return latest_result
 
@@ -117,22 +162,40 @@ class EraGameSpider:
     def broadcast(news: list) -> None:
         if len(news) > 0:
             print(f'{Utils.now()}  [INFO] 最近更新({len(news)}作):')
+            tab_size = 27
             for el in news:
-                print()
-                print(el['file_id'], el['url'])
-                print(f'{el["file_name"]} ({el["size"]}) 更新于 {el["time"]}')
-                print(el['desc'])
+                print(' ' * tab_size, el['file_id'], el['url'])
+                print(
+                    ' ' * (tab_size + 4),
+                    el["file_name"],
+                    f'({el["size"]}) 更新于 {el["time"]}',
+                )
+                print(' ' * (tab_size + 4), el['desc'])
+                # if CFG.discord['enable']:
+                #     print('TODO 发送到 Discord', CFG.discord["webhook"])
+                if CFG.telegram['enable']:
+                    print('TODO 发送到 Telegram', CFG.telegram["webhook"])
         else:
             print(f'{Utils.now()}  [INFO] 没有更新')
         return
 
 
-def main() -> None:
-    Utils.init()
+def run_task(debug: bool = False) -> None:
+    Utils.init_task()
     for path in ['up', 'up2']:
-        res = EraGameSpider.check_update(f'http://book-shelf-end.com/{path}')
+        res = EraGameSpider.check_update(
+            f'http://book-shelf-end.com/{path}', debug)
         EraGameSpider.broadcast(res)
-        print()
+
+
+def test() -> None:
+    run_task(True)
+    return
+
+
+def main() -> None:
+    run_task()
+    return
 
 
 if __name__ == '__main__':

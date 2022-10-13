@@ -1,0 +1,4 @@
+{
+  "discord": { "enable": false, "webhook": "" },
+  "telegram": { "enable": false, "webhook": "" }
+}

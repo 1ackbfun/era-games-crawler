@@ -192,7 +192,4 @@ cython_debug/
 
 poetry.lock
 cache/
-*.json
-*.csv
-*.txt
-*.ps1
+config.json
