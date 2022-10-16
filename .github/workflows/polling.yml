@@ -37,9 +37,9 @@ jobs:
         run: |
           cp config.example.json config.json
           sed -i 's@"enable":\s*false@"enable": true@g' config.json
-          sed -i 's@"webhook":\s*""@"webhook": "$dc_webhook"@' config.json
-          sed -i 's@"bot_token":\s*""@"bot_token": "$tg_bot_token"@' config.json
-          sed -i 's@"channel_id":\s*""@"channel_id": "$tg_channel_id"@' config.json
+          sed -i 's@"webhook":\s*""@"webhook": "${dc_webhook}"@' config.json
+          sed -i 's@"bot_token":\s*""@"bot_token": "${tg_bot_token}"@' config.json
+          sed -i 's@"channel_id":\s*""@"channel_id": "${tg_channel_id}"@' config.json
         env:
           dc_webhook: ${{ secrets.DISCORD_WEBHOOK }}
           tg_bot_token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
