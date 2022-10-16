@@ -203,14 +203,16 @@ class EraGameSpider:
 理论上说 永远不会运行到这里 就这样吧 直接退出""")
             exit(1)
         for d in data_list:
-            data['embeds'].append({
+            data_pack = {
                 'title': d['file_name'],
                 'description':
                     f'📥 [点击下载]({d["url"]})（账号/密码均为 `era`）' +
                     f'\n`{d["file_id"]}` _{d["size"]}_',
                 'footer': {'text': f'更新于 {d["time"]} CST'},
-                'fields': [{'name': '附带说明', 'value': d['desc']}],
-            })
+            }
+            if d['desc'] != '':
+                data_pack['fields'] = [{'name': '附注', 'value': d['desc']}]
+            data['embeds'].append(data_pack)
         try:
             url = CFG.discord['webhook']
             if 'thread_id' in CFG.discord and CFG.discord['thread_id'] != "":
@@ -219,7 +221,8 @@ class EraGameSpider:
             if resp.status_code == 204:
                 Utils.log('已发送到 Discord')
             else:
-                Utils.log(f'发送到 Discord 失败\n{resp.text}', level='error')
+                Utils.log(f'发送到 Discord 失败 status_code={resp.status_code}',
+                          f'\n{resp.text}', level='error')
         except Exception as e:
             Utils.log(e, level='error')
         return
