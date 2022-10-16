@@ -6,13 +6,13 @@ on:
   workflow_dispatch:
     inputs:
       task_mode:
-        description: 'Task Mode'
+        description: "Task Mode"
         required: true
-        default: 'debug'
+        default: "debug"
         type: choice
         options:
-        - default
-        - debug
+          - default
+          - debug
 
 jobs:
   exec_task:
@@ -54,5 +54,5 @@ jobs:
           sed -i 's@"debug":\s*false@"debug": true@' config.json
         if: ${{ inputs.task_mode == 'debug' }}
 
-      - name:76. Run task
+      - name: 7. Run task
         run: poetry run task
