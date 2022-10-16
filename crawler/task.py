@@ -208,7 +208,7 @@ class EraGameSpider:
                 'description':
                     f'📥 [点击下载]({d["url"]})（账号/密码均为 `era`）' +
                     f'\n`{d["file_id"]}` _{d["size"]}_',
-                'footer': {'text': f'更新于 {d["time"]}'},
+                'footer': {'text': f'更新于 {d["time"]} CST'},
                 'fields': [{'name': '附带说明', 'value': d['desc']}],
             })
         try:
@@ -237,7 +237,7 @@ class EraGameSpider:
 
 ▎<code>{d['file_name']}</code>
 
-更新于 {d['time']}
+更新于 {d['time']} CST
 
 🏷 #生肉
 📥 <a href="{d['url']}">点击直接下载</a>（账号/密码均为 <code>era</code>）
