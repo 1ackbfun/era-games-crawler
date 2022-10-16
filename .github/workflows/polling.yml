@@ -1,0 +1,38 @@
+name: polling
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 1. Checkout Repo
+        uses: actions/checkout@v3
+
+      - name: 2. Setup Python
+        uses: actions/setup-python@v4
+        id: setup-python
+        with:
+          python-version: 3.10
+
+      - name: 3. Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: 4. Install library
+        run: poetry install --no-interaction
+
+      - name: 5. Configure project
+        run: |
+          cp config.example.json config.json
+          sed -i 's/"webhook":\s*""/"webhook": "${{ secrets.DISCORD_WEBHOOK }}"/' config.json
+          sed -i 's/"bot_token":\s*""/"bot_token": "${{ secrets.TELEGRAM_BOT_TOKEN }}"/' config.json
+          sed -i 's/"channel_id":\s*""/"channel_id": "${{ secrets.TELEGRAM_CHANNEL_ID }}"/' config.json
+
+      - name: 6. Run task
+        run: poetry run task
