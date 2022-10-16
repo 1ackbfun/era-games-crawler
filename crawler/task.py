@@ -1,4 +1,5 @@
 import os
+import platform
 import json
 import pendulum
 import requests
@@ -7,13 +8,6 @@ import lxml
 
 
 class Utils:
-
-    @staticmethod
-    def init_task() -> None:
-        cache_path = r'./cache'
-        if not os.path.exists(cache_path):
-            os.mkdir(cache_path)
-        return
 
     @staticmethod
     def jst_to_cst(jst_str: str) -> str:
@@ -58,6 +52,36 @@ class Utils:
         last_week = pendulum.today('Asia/Shanghai').subtract(days=7)
         return (target_time - last_week).seconds >= 0
 
+    @staticmethod
+    def log(*args, **kwargs) -> bool:
+        if 'level' in kwargs:
+            level_str = ['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL']
+            if isinstance(kwargs['level'], int):
+                level = level_str[kwargs['level']]
+            else:
+                level = kwargs['level'].upper()
+        else:
+            level = 'INFO'
+        if platform.system() == "Windows":
+            os.system("")
+        color_prefix = {
+            'DEBUG': '\033[90m',
+            'WARN': '\033[33m',
+            'INFO': '\033[36m',
+            'ERROR': '\033[31m',
+            'FATAL': '\033[37;41m',
+        }
+        print(f'{color_prefix[level]}{Utils.now()}',
+              '{:>7}'.format(f'[{level}]'), *args, '\033[0m')
+        return
+
+    @staticmethod
+    def init_task() -> None:
+        cache_path = r'./cache'
+        if not os.path.exists(cache_path):
+            os.mkdir(cache_path)
+        return
+
 
 class Config:
 
@@ -67,25 +91,35 @@ class Config:
             try:
                 with open(config_path, 'r', encoding='utf-8') as f:
                     config = json.loads(f.read())
-                print(f'{Utils.now()}  [INFO] 已读取配置文件')
+                Utils.log('已读取配置文件')
                 if not ('discord' in config and 'telegram' in config):
-                    print(f'{Utils.now()} [ERROR] 配置文件缺失必要的项目')
+                    Utils.log('配置文件缺失必要的项目', level='error')
                 else:
-                    for key in ['discord', 'telegram']:
-                        if 'enable' in config[key] and config[key]['enable']:
-                            if not ('webhook' in config[key]) \
-                                    or config[key]['webhook'] == '':
-                                print(
-                                    f'{Utils.now()} [ERROR] 启用了 {key} 但没有配置 webhook')
-                                return False
+                    if 'enable' in config['discord'] and config['discord']['enable']:
+                        if not ('webhook' in config['discord']) \
+                                or config['discord']['webhook'] == '':
+                            Utils.log('启用了 Discord 通知但没有配置 webhook',
+                                      level='error')
+                            return False
                     self.discord = config['discord']
+                    if 'enable' in config['telegram'] and config['telegram']['enable']:
+                        if not ('bot_token' in config['telegram']) \
+                                or config['telegram']['bot_token'] == '':
+                            Utils.log('启用了 Telegram 通知但没有配置 webhook',
+                                      level='error')
+                            return False
+                        if not ('channel_id' in config['telegram']) \
+                                or config['telegram']['channel_id'] == '':
+                            Utils.log('启用了 Telegram 通知但没有配置 channel_id',
+                                      level='error')
+                            return False
                     self.telegram = config['telegram']
                     return True
             except Exception as e:
-                print(f'{Utils.now()} [ERROR] {e}')
+                Utils.log(e, level='error')
                 print('可能解析配置文件失败 请检查 JSON 格式是否合法')
         else:
-            print(f'{Utils.now()} [ERROR] 配置文件缺失')
+            Utils.log('配置文件缺失', level='error')
             print('运行 cp config.example.json config.json 并修改后重新运行')
         return False
 
@@ -93,7 +127,7 @@ class Config:
         if not self._load_config():
             exit(1)
         if not (self.discord['enable'] or self.telegram['enable']):
-            print(f'{Utils.now()}  [WARN] 没有启用任何播报的频道 直接退出')
+            Utils.log('没有启用任何播报的频道 直接退出', level='warn')
             exit(0)
 
 
@@ -110,24 +144,24 @@ class EraGameSpider:
             try:
                 with open(cache_file, 'r', encoding='utf-8') as f:
                     html_text = f.read()
-                print(f'{Utils.now()}  [INFO] 已读取缓存 {cache_file}')
+                Utils.log(f'已读取缓存 {cache_file}', level='debug')
             except Exception as e:
-                print(f'{Utils.now()}  [WARN] {e}')
+                Utils.log(e, level='warn')
                 resp = requests.get(url, auth=('era', 'era'))
                 if resp.status_code == 200:
                     with open(cache_file, 'wb') as f:
                         f.write(resp._content)
-                    print(f'{Utils.now()}  [INFO] 已重新缓存 {cache_file}')
+                    Utils.log(f'已重新缓存 {cache_file}')
                     html_text = resp._content.decode('utf-8')
                 else:
-                    print(f'{Utils.now()} [ERROR] 请求 {url} 失败')
+                    Utils.log(f'请求 {url} 失败', level='error')
         else:
             resp = requests.get(url, auth=('era', 'era'))
             if resp.status_code == 200:
                 html_text = resp._content.decode('utf-8')
-                print(f'{Utils.now()}  [INFO] 请求 {url} 成功')
+                Utils.log(f'请求 {url} 成功')
             else:
-                print(f'{Utils.now()} [ERROR] 请求 {url} 失败')
+                Utils.log(f'请求 {url} 失败', level='error')
         return html_text
 
     @staticmethod
@@ -148,9 +182,11 @@ class EraGameSpider:
                         'time': Utils.jst_to_cst(raw_data[4].text),
                         'desc': raw_data[2].text,
                     })
+                    if debug:
+                        break
         latest_result = []
         if debug:
-            print(f'{Utils.now()} [DEBUG] 已启用调试模式 返回的结果为最近一周')
+            Utils.log('已启用调试模式 返回的结果为最近一周', level='debug')
         for item in reversed(page_result):
             if debug and Utils.in_last_week(item['time']):
                 latest_result.append(item)
@@ -159,24 +195,23 @@ class EraGameSpider:
         return latest_result
 
     @staticmethod
-    def send_to_discord(data_list: list, username: str = '', avatar_url: str = '') -> None:
+    def send_to_discord(data_list: list, provider: str = '', avatar_url: str = '') -> None:
         data = {'embeds': []}
-        if username != '':
-            data['username'] = username
+        if provider != '':
+            data['username'] = provider
         if avatar_url != '':
             data['avatar_url'] = avatar_url
         if len(data_list) > 10:
-            print(f'{Utils.now()}  [WARN] 每条消息附带最多10个嵌入式信息(embed)')
-            print(
-                '详见 https://discord.com/developers/docs/resources/webhook#execute-webhook-jsonform-params')
-            print('本来预计不会出现1小时内新增超过10个新资源的情况 懒得做额外容错了')
-            print('理论上说 永远不会运行到这里 就这样吧 直接退出')
+            Utils.log('每条消息附带最多10个嵌入式信息(embed)', level='warn')
+            print("""详见 https://discord.com/developers/docs/resources/webhook#execute-webhook-jsonform-params
+本来预计不会出现1小时内新增超过10个新资源的情况 懒得做额外容错了
+理论上说 永远不会运行到这里 就这样吧 直接退出""")
             exit(1)
         for d in data_list:
             data['embeds'].append({
                 'title': d['file_name'],
                 'description':
-                    f'[点击下载]({d["url"]})（账号密码均为 `era`）' +
+                    f'[点击下载]({d["url"]})（账号/密码均为 `era`）' +
                     f'\n`{d["file_id"]}` _{d["size"]}_',
                 'footer': {'text': f'更新于 {d["time"]}'},
                 'fields': [{'name': '附带说明', 'value': d['desc']}],
@@ -184,47 +219,78 @@ class EraGameSpider:
         try:
             resp = requests.post(CFG.discord["webhook"], json=data)
             if resp.status_code == 204:
-                print(f'{Utils.now()}  [INFO] 已发送到 Discord')
+                Utils.log('已发送到 Discord')
             else:
-                print(f'{Utils.now()} [ERROR] 发送到 Discord 失败 {resp.text}')
+                Utils.log(f'发送到 Discord 失败\n{resp.text}', level='error')
         except Exception as e:
-            print(f'{Utils.now()} [ERROR] {e}')
+            Utils.log(e, level='error')
         return
 
     @staticmethod
-    def send_to_telegram(data_list: list) -> None:
-        print('TODO 发送到 Telegram', CFG.telegram["webhook"])
+    def send_to_telegram(data_list: list, provider: str = '') -> None:
+        data = {
+            'chat_id': int(CFG.telegram['channel_id']),
+            'parse_mode': 'HTML',
+            'disable_web_page_preview': True,
+        }
+        for d in data_list:
+            URL = f'https://api.telegram.org/bot{CFG.telegram["bot_token"]}/sendMessage'
+            data['text'] = f"""日本 era 储备库 - <b>{provider}</b>
+
+▎<code>{d['file_name']}</code>
+
+更新于 {d['time']}
+
+🏷 #生肉
+📥 <a href="{d['url']}">点击直接下载</a>（账号/密码均为 <code>era</code>）
+<code>{d['file_id']}</code> <i>{d['size']}</i>
+
+{d['desc']}"""
+            try:
+                # import http.client as http_client
+                # http_client.HTTPConnection.debuglevel = 1
+                # import logging
+                # logging.basicConfig()
+                # logging.getLogger().setLevel(logging.DEBUG)
+                # requests_log = logging.getLogger("requests.packages.urllib3")
+                # requests_log.setLevel(logging.DEBUG)
+                # requests_log.propagate = True
+                resp = requests.post(URL, json=data)
+                if resp.status_code == 200:
+                    Utils.log('已发送到 Telegram')
+                else:
+                    Utils.log(f'发送到 Telegram 失败\n{resp.text}', level='error')
+            except Exception as e:
+                Utils.log(e, level='error')
         return
 
     @staticmethod
-    def broadcast(news: list, username: str = '') -> None:
+    def broadcast(news: list, provider: str = '') -> None:
         if len(news) > 0:
-            print(f'{Utils.now()}  [INFO] 最近更新({len(news)}作):')
-            tab_size = 27
+            Utils.log(f'最近更新({len(news)}作):')
+            tab_size = 26
             for el in news:
-                print(' ' * tab_size, el['file_id'], el['url'])
-                print(
-                    ' ' * (tab_size + 4),
-                    el["file_name"],
-                    f'({el["size"]}) 更新于 {el["time"]}',
-                )
-                print(' ' * (tab_size + 4), el['desc'])
+                print(' ' * tab_size, '\033[92m',
+                      f'{el["file_id"]} \033[32m{el["url"]}')
+                print(' ' * (tab_size + 4), '\033[36m', el["file_name"],
+                      f'({el["size"]}) 更新于 {el["time"]}')
+                print(' ' * (tab_size + 4), '\033[37m', el['desc'], '\033[0m')
             if CFG.discord['enable']:
-                EraGameSpider.send_to_discord(news, username)
+                EraGameSpider.send_to_discord(news, provider)
             if CFG.telegram['enable']:
-                EraGameSpider.send_to_telegram(news)
+                EraGameSpider.send_to_telegram(news, provider)
         else:
-            print(f'{Utils.now()}  [INFO] 没有更新')
+            Utils.log('没有更新')
         return
 
     @staticmethod
     def run(debug: bool = False) -> None:
         Utils.init_task()
-        username = {'up': '其他era游戏', 'up2': '东方era游戏'}
+        provider = {'up': '其他 era 游戏资源', 'up2': '东方 era 游戏资源'}
         for path in ['up', 'up2']:
             res = EraGameSpider.check_update(
                 f'http://book-shelf-end.com/{path}', debug)
-            EraGameSpider.broadcast(res, username[path])
+            EraGameSpider.broadcast(res, provider[path])
 
 
 def test() -> None:

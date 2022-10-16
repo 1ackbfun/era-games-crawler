@@ -1,4 +1,11 @@
 {
-  "discord": { "enable": false, "webhook": "" },
-  "telegram": { "enable": false, "webhook": "" }
+  "discord": {
+    "enable": false,
+    "webhook": ""
+  },
+  "telegram": {
+    "enable": false,
+    "bot_token": "",
+    "channel_id": ""
+  }
 }
