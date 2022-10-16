@@ -50,13 +50,6 @@ class Utils:
             return False
 
     @staticmethod
-    def in_last_week(time_str: str) -> bool:
-        target_time = pendulum.from_format(
-            time_str, 'YYYY-MM-DD HH:mm:ss', tz='Asia/Shanghai')
-        last_week = pendulum.today('Asia/Shanghai').subtract(days=7)
-        return (target_time - last_week).seconds >= 0
-
-    @staticmethod
     def log(*args, **kwargs) -> bool:
         if 'level' in kwargs:
             level_str = ['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL']
