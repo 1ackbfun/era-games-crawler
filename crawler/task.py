@@ -93,6 +93,10 @@ class Config:
                 with open(config_path, 'r', encoding='utf-8') as f:
                     config = json.loads(f.read())
                 Utils.log('已读取配置文件')
+                if 'debug' in config and config['debug']:
+                    self.debug = True
+                else:
+                    self.debug = False
                 if not ('discord' in config and 'telegram' in config):
                     Utils.log('配置文件缺失必要的项目', level='error')
                 else:
@@ -279,10 +283,13 @@ class EraGameSpider:
                 print(' ' * (tab_size + 4), '\033[36m', el["file_name"],
                       f'({el["size"]}) 更新于 {el["time"]}')
                 print(' ' * (tab_size + 4), '\033[37m', el['desc'], '\033[0m')
-            if CFG.discord['enable']:
-                EraGameSpider.send_to_discord(news, provider)
-            if CFG.telegram['enable']:
-                EraGameSpider.send_to_telegram(news, provider)
+            if CFG.debug:
+                Utils.log('当前配置为调试模式 只请求数据 不推送通知', level='debug')
+            else:
+                if CFG.discord['enable']:
+                    EraGameSpider.send_to_discord(news, provider)
+                if CFG.telegram['enable']:
+                    EraGameSpider.send_to_telegram(news, provider)
         else:
             Utils.log('没有更新')
         return

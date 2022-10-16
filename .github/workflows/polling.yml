@@ -5,10 +5,14 @@ on:
     - cron: "0 * * * *"
   workflow_dispatch:
     inputs:
-      tags:
-        description: "Test scenario tags"
-        required: false
-        type: boolean
+      task_mode:
+        description: 'Task Mode'
+        required: true
+        default: 'debug'
+        type: choice
+        options:
+        - default
+        - debug
 
 jobs:
   exec_task:
@@ -45,5 +49,10 @@ jobs:
           tg_bot_token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           tg_channel_id: ${{ secrets.TELEGRAM_CHANNEL_ID }}
 
-      - name: 6. Run task
+      - name: 6. Check debug mode
+        run: |
+          sed -i 's@"debug":\s*false@"debug": true@' config.json
+        if: ${{ inputs.task_mode == 'debug' }}
+
+      - name:76. Run task
         run: poetry run task
