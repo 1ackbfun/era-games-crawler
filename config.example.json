@@ -1,7 +1,8 @@
 {
   "discord": {
     "enable": false,
-    "webhook": ""
+    "webhook": "",
+    "thread_id": ""
   },
   "telegram": {
     "enable": false,

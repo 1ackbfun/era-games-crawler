@@ -41,9 +41,10 @@ class Utils:
     def in_last_hour(time_str: str) -> bool:
         target_time = pendulum.from_format(
             time_str, 'YYYY-MM-DD HH:mm:ss', tz='Asia/Shanghai')
-        last_hour = pendulum.today(
-            'Asia/Shanghai').add(hours=pendulum.now('Asia/Shanghai').hour)
-        return (target_time - last_hour).seconds >= 0
+        last_hour_start = pendulum.today('Asia/Shanghai').add(
+            hours=(pendulum.now('Asia/Shanghai').hour - 1))
+        elapsed_seconds = (target_time - last_hour_start).seconds
+        return elapsed_seconds >= 0 and elapsed_seconds < 3600
 
     @staticmethod
     def in_last_week(time_str: str) -> bool:
@@ -211,13 +212,16 @@ class EraGameSpider:
             data['embeds'].append({
                 'title': d['file_name'],
                 'description':
-                    f'[点击下载]({d["url"]})（账号/密码均为 `era`）' +
+                    f'📥 [点击下载]({d["url"]})（账号/密码均为 `era`）' +
                     f'\n`{d["file_id"]}` _{d["size"]}_',
                 'footer': {'text': f'更新于 {d["time"]}'},
                 'fields': [{'name': '附带说明', 'value': d['desc']}],
             })
         try:
-            resp = requests.post(CFG.discord["webhook"], json=data)
+            url = CFG.discord['webhook']
+            if 'thread_id' in CFG.discord and CFG.discord['thread_id'] != "":
+                url += f'?thread_id={thread_id}'
+            resp = requests.post(url, json=data)
             if resp.status_code == 204:
                 Utils.log('已发送到 Discord')
             else:
