@@ -43,8 +43,11 @@ class Utils:
             time_str, 'YYYY-MM-DD HH:mm:ss', tz='Asia/Shanghai')
         last_hour_start = pendulum.today('Asia/Shanghai').add(
             hours=(pendulum.now('Asia/Shanghai').hour - 1))
-        elapsed_seconds = (target_time - last_hour_start).seconds
-        return elapsed_seconds >= 0 and elapsed_seconds < 3600
+        if target_time.diff(last_hour_start).in_hours() < 1:
+            elapsed_seconds = (target_time - last_hour_start).seconds
+            return elapsed_seconds >= 0 and elapsed_seconds < 3600
+        else:
+            return False
 
     @staticmethod
     def in_last_week(time_str: str) -> bool:
@@ -170,8 +173,8 @@ class EraGameSpider:
         return html_text
 
     @staticmethod
-    def check_update(url: str, debug: bool = False) -> list:
-        html = EraGameSpider.get_html(f'{url}/index.html', debug)
+    def check_update(url: str, use_cache: bool = False) -> list:
+        html = EraGameSpider.get_html(f'{url}/index.html', use_cache)
         soup = BeautifulSoup(html, 'lxml')
         page_result = []
         for table_content in soup.select('table#table'):
@@ -187,15 +190,9 @@ class EraGameSpider:
                         'time': Utils.jst_to_cst(raw_data[4].text),
                         'desc': raw_data[2].text,
                     })
-                    if debug:
-                        break
         latest_result = []
-        if debug:
-            Utils.log('已启用调试模式 返回的结果为最近一周', level='debug')
         for item in reversed(page_result):
-            if debug and Utils.in_last_week(item['time']):
-                latest_result.append(item)
-            elif Utils.in_last_hour(item['time']):
+            if Utils.in_last_hour(item['time']):
                 latest_result.append(item)
         return latest_result
 
@@ -224,7 +221,7 @@ class EraGameSpider:
         try:
             url = CFG.discord['webhook']
             if 'thread_id' in CFG.discord and CFG.discord['thread_id'] != "":
-                url += f'?thread_id={thread_id}'
+                url += f'?thread_id={CFG.discord["thread_id"]}'
             resp = requests.post(url, json=data)
             if resp.status_code == 204:
                 Utils.log('已发送到 Discord')
@@ -284,7 +281,7 @@ class EraGameSpider:
                       f'({el["size"]}) 更新于 {el["time"]}')
                 print(' ' * (tab_size + 4), '\033[37m', el['desc'], '\033[0m')
             if CFG.debug:
-                Utils.log('当前配置为调试模式 只请求数据 不推送通知', level='debug')
+                Utils.log('当前配置为调试模式 只请求数据 不推送通知')
             else:
                 if CFG.discord['enable']:
                     EraGameSpider.send_to_discord(news, provider)
@@ -295,12 +292,12 @@ class EraGameSpider:
         return
 
     @staticmethod
-    def run(debug: bool = False) -> None:
+    def run(enable_cache: bool = False) -> None:
         Utils.init_task()
         provider = {'up': '其他 era 游戏资源', 'up2': '东方 era 游戏资源'}
         for path in ['up', 'up2']:
             res = EraGameSpider.check_update(
-                f'http://book-shelf-end.com/{path}', debug)
+                f'http://book-shelf-end.com/{path}', enable_cache)
             EraGameSpider.broadcast(res, provider[path])
 
 
